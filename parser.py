@@ -45,6 +45,7 @@ class Metadata(object):
 
 class InternalMetadata(Metadata):
     def __init__(self,buf):
+
         self.fetchcount = struct.unpack(">I",buf[8:12])[0]
         self.firstfetch = datetime.datetime.fromtimestamp(struct.unpack(">I",buf[12:16])[0])
         self.lastfetch = datetime.datetime.fromtimestamp(struct.unpack(">I",buf[16:20])[0])
@@ -52,6 +53,7 @@ class InternalMetadata(Metadata):
         self.responsesize = struct.unpack(">I",buf[32:36])[0]
         self.request = buf[36:36+self.requestsize]
         self.response = buf[36+self.requestsize:]
+
 
 
 class Data(object):
@@ -63,15 +65,17 @@ class InternalData(Data):
         self.filename = ""
         self.data = buf
 
+
 class ExternalData(Data):
     def __init__(self,filename):
         try:
             fp = open(DIR+"/"+filename)
             self.data = fp.read()
             fp.close()
-            print "+"+filename
+            #print "+"+filename
         except IOError:
-            print "-"+filename
+            pass
+            #print "-"+filename
 
 class Bucket(object):
     def __init__(self,b,c):
@@ -83,6 +87,10 @@ class Bucket(object):
 
         self.loc = (self.datalocation & 0x30000000) >> 28
         self.mloc = (self.metalocation & 0x30000000) >> 28
+        if self.hashnumber == 0:
+            self.dataclass = None
+            self.metadataclass = None
+            return
 
         if self.loc != 0:
             self.eblocks = ((self.datalocation & 0x03000000) >> 24) +1
@@ -94,7 +102,7 @@ class Bucket(object):
             self.eblocks = -1
             self.startblock = -1
             ftmp = "%08X%s%02x" % (self.hashnumber,"d",(self.datalocation & 0x000000ff))
-            if (self.datalocation & 0x000000ff) == 0:
+            if (self.datalocation & 0x000000ff) != 1:
                 self.filename = ""
                 q = None
             else:
@@ -109,6 +117,7 @@ class Bucket(object):
             self.mstartblock = self.metalocation & 0x00ffffff
             self.mfilename = ""
             self.metadatablock = c[self.mloc].read_data(self.mstartblock,self.emblocks)
+            #print self.mloc, self.mstartblock, self.emblocks
             q = InternalMetadata(self.metadatablock)
         else:
             self.emblocks = -1
@@ -148,7 +157,16 @@ class CacheMap(object):
                 break
 
         for b in self.bucketraw:
-            self.bucket.append(Bucket(b,c))
+            tbuck = Bucket(b,c)
+            if tbuck.metadataclass != None:
+                self.bucket.append(Bucket(b,c))
+
+        i=0;
+        for b in self.bucket:
+            if b.metadataclass == None:
+                continue
+            i += 1
+        print i,len(self.bucket)
 
         fp.close()
 
