@@ -3,9 +3,19 @@
 import struct
 import binascii
 import datetime
+import os
 
-DIR="/home/visti/.mozilla/firefox/5fldtgzz.default/Cache"
-
+def locate_cache_dir():
+    for root, dirs, files in os.walk(os.path.expanduser("~")+"/.cache"):
+        for d in dirs:
+            if d.endswith(".default"):
+                directory = root+"/"+d+"/Cache"
+                break
+    try:
+        return directory
+    except NameError:
+        print >>sys.stderr, "no cache dir"
+        exit(1)
 
 def _hexdump(data,highlight=-1,endlight=-1):
     def _Split_String(s):
@@ -186,6 +196,10 @@ class CacheFile(object):
             return self.data[self.cbsize*s:self.cbsize*(s+n)+1]
         except:
             return None
+
+
+DIR=locate_cache_dir()
+
 
 c = (None,CacheFile(DIR+"/_CACHE_001_",16384),CacheFile(DIR+"/_CACHE_002_",4096),
      CacheFile(DIR+"/_CACHE_003_",1024))
