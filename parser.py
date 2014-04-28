@@ -61,15 +61,13 @@ class InternalMetadata(Metadata):
         self.lastfetch = datetime.datetime.fromtimestamp(struct.unpack(">I",buf[16:20])[0])
         self.requestsize = struct.unpack(">I",buf[28:32])[0]
         self.responsesize = struct.unpack(">I",buf[32:36])[0]
-        self.request = buf[36:36+self.requestsize]
+        self.request = buf[36:36+self.requestsize-1]
         self.response = buf[36+self.requestsize:]
-
-
 
 class Data(object):
     def print_data(self):
         print len(self.data)
-
+    
 class InternalData(Data):
     def __init__(self,buf):
         self.filename = ""
@@ -145,6 +143,12 @@ class Bucket(object):
         print "Data:",self.startblock,self.eblocks,self.dataclass.print_data()
         print "Metadata",self.mstartblock,self.emblocks,self.mfilename
 
+    def search(self,url):
+        if self.metadataclass.request == url:
+            return True
+        else:
+            return False
+
 
 class CacheMap(object):
     def __init__(self,fname,c):
@@ -167,9 +171,9 @@ class CacheMap(object):
                 break
 
         for b in self.bucketraw:
-            tbuck = Bucket(b,c)
+            tbuck = Bucket(b,self.c)
             if tbuck.metadataclass != None:
-                self.bucket.append(Bucket(b,c))
+                self.bucket.append(tbuck)
 
         i=0;
         for b in self.bucket:
@@ -179,6 +183,13 @@ class CacheMap(object):
         print i,len(self.bucket)
 
         fp.close()
+
+    def search(self, url):
+        for b in self.bucket:
+            if b.search(url) == True:
+                return b
+        return None
+            
 
 class CacheFile(object):
     def __init__(self,fname,blocks):
@@ -204,6 +215,12 @@ DIR=locate_cache_dir()
 c = (None,CacheFile(DIR+"/_CACHE_001_",16384),CacheFile(DIR+"/_CACHE_002_",4096),
      CacheFile(DIR+"/_CACHE_003_",1024))
 cm = CacheMap(DIR+"/_CACHE_MAP_",c)
+y = cm.search("HTTP:http://www.aulabaari.net/")
+if y:
+    y.disp()
+    foo = open("xyzzy", "w")
+    foo.write(y.dataclass.data)
+    foo.close()
 
 
         
