@@ -4,9 +4,14 @@ import struct
 import binascii
 import datetime
 import os
+import sys
 
-def locate_cache_dir():
-    for root, dirs, files in os.walk(os.path.expanduser("~")+"/.cache"):
+def locate_cache_dir(rootpath=None):
+    if not rootpath:
+        tpath = os.path.expanduser("~")+"/.cache"
+    else:
+        tpath = rootpath+"/.cache"
+    for root, dirs, files in os.walk(tpath):
         for d in dirs:
             if d.endswith(".default"):
                 directory = root+"/"+d+"/Cache"
@@ -63,6 +68,12 @@ class InternalMetadata(Metadata):
         self.responsesize = struct.unpack(">I",buf[32:36])[0]
         self.request = buf[36:36+self.requestsize-1]
         self.response = buf[36+self.requestsize:]
+
+    def disp(self):
+        print self.request,self.fetchcount,self.firstfetch,self.lastfetch
+
+    def get_url(self):
+        return self.request
 
 class Data(object):
     def print_data(self):
@@ -140,8 +151,13 @@ class Bucket(object):
     def disp(self):
         print "---"
         print "Loc/Mloc",self.loc,self.mloc
-        print "Data:",self.startblock,self.eblocks,self.dataclass.print_data()
-        print "Metadata",self.mstartblock,self.emblocks,self.mfilename
+        if self.dataclass != None:
+            print "Data:",self.startblock,self.eblocks,self.dataclass.print_data()
+        if self.metadataclass != None:
+            self.metadataclass.disp()
+    def display_url(self):
+        if self.metadataclass != None:
+            print self.metadataclass.get_url()
 
     def search(self,url):
         if self.metadataclass.request == url:
@@ -164,6 +180,7 @@ class CacheMap(object):
         while True:
             try:
                 buf = fp.read(16)
+                print "x"
                 if len(buf) < 16:
                     break
                 self.bucketraw.append(struct.unpack(">IIII",buf))
@@ -189,6 +206,10 @@ class CacheMap(object):
             if b.search(url) == True:
                 return b
         return None
+
+    def display_urls(self):
+        for f in self.bucket:
+            f.display_url()
             
 
 class CacheFile(object):
@@ -209,18 +230,19 @@ class CacheFile(object):
             return None
 
 
-DIR=locate_cache_dir()
-
+DIR=locate_cache_dir("/var/lib/lxc/forge-lxc/rootfs/home/forge")
+#DIR=locate_cache_dir()
 
 c = (None,CacheFile(DIR+"/_CACHE_001_",16384),CacheFile(DIR+"/_CACHE_002_",4096),
      CacheFile(DIR+"/_CACHE_003_",1024))
 cm = CacheMap(DIR+"/_CACHE_MAP_",c)
-y = cm.search("HTTP:http://www.aulabaari.net/")
+cm.display_urls()
+"""
 if y:
     y.disp()
     foo = open("xyzzy", "w")
     foo.write(y.dataclass.data)
     foo.close()
-
+"""
 
         
